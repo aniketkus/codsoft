@@ -1,0 +1,115 @@
+import colorama
+from colorama import Fore, Style
+import time
+
+
+colorama.init()
+
+class Calculator:
+    def __init__(self):
+        self.history = []
+        self.last_result = None
+
+    def add(self, x, y):
+        return x + y
+
+    def subtract(self, x, y):
+        return x - y
+
+    def multiply(self, x, y):
+        return x * y
+
+    def divide(self, x, y):
+        if y == 0:
+            raise ValueError("Cannot divide by zero!")
+        return x / y
+
+    def power(self, x, y):
+        return x ** y
+
+    def save_calculation(self, x, y, operation, result):
+        timestamp = time.strftime("%H:%M:%S")
+        calculation = {
+            'timestamp': timestamp,
+            'x': x,
+            'y': y,
+            'operation': operation,
+            'result': result
+        }
+        self.history.append(calculation)
+        self.last_result = result
+
+    def display_history(self):
+        if not self.history:
+            print(f"{Fore.YELLOW}No calculations performed yet!{Style.RESET_ALL}")
+            return
+        
+        print(f"\n{Fore.CYAN}=== Calculation History ==={Style.RESET_ALL}")
+        for calc in self.history:
+            print(f"{Fore.BLUE}[{calc['timestamp']}]{Style.RESET_ALL} "
+                  f"{calc['x']} {calc['operation']} {calc['y']} = "
+                  f"{Fore.GREEN}{calc['result']}{Style.RESET_ALL}")
+
+def get_number_input(prompt):
+    while True:
+        try:
+            value = input(prompt)
+            if value.lower() == 'last' and calculator.last_result is not None:
+                return calculator.last_result
+            return float(value)
+        except ValueError:
+            if calculator.last_result is None:
+                print(f"{Fore.RED}Please enter a valid number!{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}Please enter a valid number or 'last' to use previous result!{Style.RESET_ALL}")
+
+def main():
+    operations = {
+        '1': ('Addition', '+', calculator.add),
+        '2': ('Subtraction', '-', calculator.subtract),
+        '3': ('Multiplication', '*', calculator.multiply),
+        '4': ('Division', '/', calculator.divide),
+        '5': ('Power', '^', calculator.power)
+    }
+
+    while True:
+        print(f"\n{Fore.CYAN}=== Calculator ==={Style.RESET_ALL}")
+        print("Available operations:")
+        for key, (name, symbol, _) in operations.items():
+            print(f"{Fore.YELLOW}{key}. {name} ({symbol}){Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}6. View History{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}7. Exit{Style.RESET_ALL}")
+
+        choice = input("\nEnter your choice (1-7): ")
+
+        if choice == '7':
+            print(f"{Fore.GREEN}Thank you for using the calculator!{Style.RESET_ALL}")
+            break
+        elif choice == '6':
+            calculator.display_history()
+            continue
+        elif choice not in operations:
+            print(f"{Fore.RED}Invalid choice! Please try again.{Style.RESET_ALL}")
+            continue
+
+        operation_name, symbol, operation = operations[choice]
+        
+        print(f"\n{Fore.CYAN}Note: You can type 'last' to use the previous result ({calculator.last_result}){Style.RESET_ALL}" if calculator.last_result is not None else "")
+        
+        x = get_number_input("Enter first number: ")
+        y = get_number_input("Enter second number: ")
+
+        try:
+            result = operation(x, y)
+            print(f"\n{Fore.GREEN}Result: {x} {symbol} {y} = {result}{Style.RESET_ALL}")
+            calculator.save_calculation(x, y, symbol, result)
+        except ValueError as e:
+            print(f"{Fore.RED}Error: {str(e)}{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}An unexpected error occurred: {str(e)}{Style.RESET_ALL}")
+
+        input("\nPress Enter to continue...")
+
+if __name__ == "__main__":
+    calculator = Calculator()
+    main()
