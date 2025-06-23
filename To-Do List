@@ -1,0 +1,214 @@
+from tkinter import *
+from tkinter import messagebox
+import sqlite3 as sql
+
+
+class TaskDatabase:
+    """Handles all database operations for the to-do list app."""
+    def __init__(self, db_name='tasks.db'):
+        self.conn = sql.connect(db_name)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tasks (
+                title TEXT UNIQUE,
+                completed INTEGER DEFAULT 0
+            )
+        ''')
+
+    def add_task(self, title):
+        try:
+            self.cursor.execute('INSERT INTO tasks (title, completed) VALUES (?, ?)', (title, 0))
+            self.conn.commit()
+            return True
+        except sql.IntegrityError:
+            return False
+
+    def delete_task(self, title):
+        self.cursor.execute('DELETE FROM tasks WHERE title = ?', (title,))
+        self.conn.commit()
+
+    def delete_all_tasks(self):
+        self.cursor.execute('DELETE FROM tasks')
+        self.conn.commit()
+
+    def get_tasks(self):
+        self.cursor.execute('SELECT title, completed FROM tasks')
+        return self.cursor.fetchall()
+
+    def set_completed(self, title, completed):
+        self.cursor.execute('UPDATE tasks SET completed = ? WHERE title = ?', (completed, title))
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
+class ToDoApp:
+    """Main application class for the to-do list GUI."""
+    def __init__(self, root):
+        self.db = TaskDatabase()
+        self.tasks = []
+        self.completed = []
+
+        
+        root.title("To-Do List")
+        root.geometry("700x420+500+200")
+        root.resizable(0, 0)
+        root.configure(bg="#f4f6fb")
+        
+        self.main_frame = Frame(root, bg="#f4f6fb")
+        self.main_frame.pack(side="top", expand=True, fill="both")
+
+        self.create_widgets()
+        self.load_tasks_from_db()
+        self.update_listbox()
+
+    def create_widgets(self):
+        
+        Label(
+            self.main_frame,
+            text="TO-DO LIST",
+            font=("Segoe UI", 20, "bold"),
+            bg="#f4f6fb", fg="#22223b"
+        ).place(x=20, y=15)
+
+        
+        self.task_entry = Entry(
+            self.main_frame,
+            font=("Segoe UI", 14),
+            width=38, fg="#22223b", bg="#fff"
+        )
+        self.task_entry.place(x=200, y=25)
+
+        
+        self.add_btn = Button(
+            self.main_frame, text="Add Task", width=13,
+            bg='#4ea8de', fg='white', font=("Segoe UI", 12, "bold"),
+            activebackground='#1b4965', activeforeground='white',
+            bd=0, cursor="hand2",
+            command=self.add_task
+        )
+        self.add_btn.place(x=18, y=70)
+
+        
+        self.remove_btn = Button(
+            self.main_frame, text="Remove Task", width=13,
+            bg='#e63946', fg='white', font=("Segoe UI", 12, "bold"),
+            activebackground='#a4161a', activeforeground='white',
+            bd=0, cursor="hand2",
+            command=self.remove_task
+        )
+        self.remove_btn.place(x=180, y=70)
+
+        
+        self.complete_btn = Button(
+            self.main_frame, text="Mark Completed", width=13,
+            bg='#52b788', fg='white', font=("Segoe UI", 12, "bold"),
+            activebackground='#40916c', activeforeground='white',
+            bd=0, cursor="hand2",
+            command=self.mark_completed
+        )
+        self.complete_btn.place(x=342, y=70)
+
+        
+        self.delete_all_btn = Button(
+            self.main_frame, text="Delete All", width=13,
+            bg='#adb5bd', fg='white', font=("Segoe UI", 12, "bold"),
+            activebackground='#495057', activeforeground='white',
+            bd=0, cursor="hand2",
+            command=self.delete_all_tasks
+        )
+        self.delete_all_btn.place(x=504, y=70)
+
+        
+        self.exit_btn = Button(
+            self.main_frame, text="Exit", width=13,
+            bg='#22223b', fg='white', font=("Segoe UI", 12, "bold"),
+            activebackground='#4ea8de', activeforeground='white',
+            bd=0, cursor="hand2",
+            command=self.close_app
+        )
+        self.exit_btn.place(x=18, y=350)
+
+        
+        self.task_listbox = Listbox(
+            self.main_frame, width=70, height=10,
+            font=("Segoe UI", 12), selectmode='SINGLE',
+            bg="#fff", fg="#22223b",
+            selectbackground="#4ea8de", selectforeground="#fff",
+            bd=0, highlightthickness=1, relief=FLAT
+        )
+        self.task_listbox.place(x=18, y=120)
+
+     
+        self.scrollbar = Scrollbar(self.main_frame, orient=VERTICAL, command=self.task_listbox.yview)
+        self.scrollbar.place(x=670, y=120, height=210)
+        self.task_listbox.config(yscrollcommand=self.scrollbar.set)
+
+    def add_task(self):
+        title = self.task_entry.get().strip()
+        if not title:
+            messagebox.showinfo('Error', 'Task field is empty.')
+            return
+        if title in self.tasks:
+            messagebox.showinfo('Error', 'Task already exists.')
+            return
+        if self.db.add_task(title):
+            self.tasks.append(title)
+            self.completed.append(0)
+            self.update_listbox()
+            self.task_entry.delete(0, 'end')
+        else:
+            messagebox.showinfo('Error', 'Task already exists.')
+
+    def remove_task(self):
+        try:
+            idx = self.task_listbox.curselection()[0]
+            title = self.tasks[idx]
+            self.db.delete_task(title)
+            self.tasks.pop(idx)
+            self.completed.pop(idx)
+            self.update_listbox()
+        except IndexError:
+            messagebox.showinfo('Error', 'No task selected.')
+
+    def delete_all_tasks(self):
+        if messagebox.askyesno('Delete All', 'Are you sure you want to delete all tasks?'):
+            self.db.delete_all_tasks()
+            self.tasks.clear()
+            self.completed.clear()
+            self.update_listbox()
+
+    def mark_completed(self):
+        try:
+            idx = self.task_listbox.curselection()[0]
+            if self.completed[idx]:
+                messagebox.showinfo('Info', 'Task is already marked as completed.')
+                return
+            self.completed[idx] = 1
+            self.db.set_completed(self.tasks[idx], 1)
+            self.update_listbox()
+        except IndexError:
+            messagebox.showinfo('Error', 'No task selected.')
+
+    def update_listbox(self):
+        self.task_listbox.delete(0, 'end')
+        for i, title in enumerate(self.tasks):
+            prefix = '✔️ ' if self.completed[i] else '⏺️ '
+            self.task_listbox.insert('end', f'{prefix}{title}')
+
+    def load_tasks_from_db(self):
+        self.tasks.clear()
+        self.completed.clear()
+        for title, completed in self.db.get_tasks():
+            self.tasks.append(title)
+            self.completed.append(completed)
+
+    def close_app(self):
+        self.db.close()
+        root.destroy()
+
+if __name__ == "__main__":
+    root = Tk()
+    app = ToDoApp(root)
+    root.mainloop()
